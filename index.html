@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GD52</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(18, 1fr);
+      gap: 2px;
+      max-width: 1440px;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      border: 1px dashed #aaa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #f0f0f0;
+      overflow: hidden;
+    }
+    .cell img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: cover;
+    }
+    .drag-item {
+      cursor: move;
+    }
+    .image-bank {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .image-bank img {
+      width: 75px;
+      height: 75px;
+      border: 1px solid #ccc;
+    }
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="image-bank" id="imageBank"></div>
+  <div class="grid" id="grid"></div>
+
+  <script>
+    const imageUrls = Array.from({ length: 72 }, (_, i) => `img_${i + 1}.png`);
+
+    const imageBank = document.getElementById('imageBank');
+    const grid = document.getElementById('grid');
+
+    const imgElements = {};
+
+    imageUrls.forEach((url, index) => {
+      const img = document.createElement('img');
+      img.src = url;
+      img.draggable = true;
+      img.classList.add('drag-item');
+      img.id = `img-${index}`;
+      img.addEventListener('dragstart', dragStart);
+      imageBank.appendChild(img);
+      imgElements[img.src] = img;
+    });
+
+    for (let i = 0; i < 288; i++) {
+      const cell = document.createElement('div');
+      cell.id = "cid"+i;
+      cell.className = 'cell';
+      cell.addEventListener('dragover', dragOver);
+      cell.addEventListener('drop', drop);
+      grid.appendChild(cell);
+    }
+
+    let draggedItem = null;
+    let sourceCell = null;
+
+    function dragStart(e) {
+      draggedItem = e.target;
+      e.dataTransfer.setData('text/plain', e.target.src);
+      sourceCell = e.target.closest('.cell');
+    }
+
+    function dragOver(e) {
+      e.preventDefault();
+    }
+
+    function drop(e) {
+      e.preventDefault();
+      const src = e.dataTransfer.getData('text/plain');
+      const targetCell = e.target.closest('.cell');
+      if (!targetCell) return;
+
+      const targetImg = targetCell.querySelector('img');
+
+      if (targetImg) {
+        const targetSrc = targetImg.src;
+        if (imageBank.contains(imgElements[targetSrc])) {
+          imgElements[targetSrc].classList.remove('hidden');
+        }
+
+        if (sourceCell && sourceCell !== targetCell && sourceCell.contains(draggedItem)) {
+          sourceCell.innerHTML = '';
+          const swapImg = document.createElement('img');
+          swapImg.rotated = targetImg.rotated;
+          swapImg.style = "transform: rotate("+swapImg.rotated+"deg)";
+          swapImg.src = targetSrc;
+          swapImg.draggable = true;
+          swapImg.classList.add('drag-item');
+          swapImg.addEventListener('dragstart', dragStart);
+          swapImg.addEventListener('click', clicked);
+          sourceCell.appendChild(swapImg);
+
+          imgElements[targetSrc]?.classList.add('hidden');
+        }
+      } else {
+        if (sourceCell && sourceCell !== targetCell && sourceCell.contains(draggedItem)) {
+          sourceCell.innerHTML = '';
+        }
+      }
+
+
+
+      targetCell.innerHTML = '';
+      const newImg = document.createElement('img');
+      newImg.src = src;
+      newImg.rotated = draggedItem.rotated;
+      newImg.style = "transform: rotate("+newImg.rotated+"deg)";
+      newImg.draggable = true;
+      newImg.classList.add('drag-item');
+      newImg.addEventListener('dragstart', dragStart);
+      newImg.addEventListener('click', clicked);
+      targetCell.appendChild(newImg);
+
+      if (imgElements[src]) {
+        imgElements[src].classList.add('hidden');
+      }
+      saveitems();
+    }
+
+function clicked (e) {
+    e.srcElement.rotated = ((e.srcElement.rotated?e.srcElement.rotated:0) + 90)%360;
+    e.srcElement.style = "transform: rotate("+e.srcElement.rotated+"deg)";
+    saveitems();
+}
+
+function saveitems () {
+    let str = "";
+    for (let i = 0; i < 288; i++) {
+        let e = document.getElementById('cid'+i).children[0];
+        if (e) {
+            let id = e.src.split("_")[1].split(".")[0];
+            str += id+"."+(e.rotated?e.rotated:0);
+        }
+        str += ",";
+    }
+    window.location.hash = str;
+}
+
+function loaditems () {
+    let str = window.location.hash.substring(1);
+    let cells = str.split(",");
+    for (let i = 0; i < 288; i++) {
+        if (cells[i].length) {
+            let id = parseInt(cells[i].split(".")[0]);
+            let rotated = parseInt(cells[i].split(".")[1]);
+            let e = document.getElementById('cid'+i);
+
+            const newImg = document.createElement('img');
+            newImg.src = "img_"+id+".png";
+            newImg.rotated = rotated;
+            newImg.style = "transform: rotate("+newImg.rotated+"deg)";
+            newImg.draggable = true;
+            newImg.classList.add('drag-item');
+            newImg.addEventListener('dragstart', dragStart);
+            newImg.addEventListener('click', clicked);
+            if (imgElements[newImg.src]) {
+                imgElements[newImg.src].classList.add('hidden');
+            }
+            e.appendChild(newImg);
+        }
+    }
+}
+
+loaditems();
+
+  </script>
+</body>
+</html>
